@@ -11,3 +11,10 @@
 #loadingOverlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.78);z-index:20;align-items:center;justify-content:center;flex-direction:column;gap:10px}.show{display:flex!important}.big-spinner{width:42px;height:42px;border:4px solid #cfe9ef;border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:650px){body{padding:0 6px}.login-card,.query-card{padding:22px 16px}.grade-group{gap:6px}.grade-label{width:58px}.schedule-title{font-size:1.15rem}.action-bar{align-items:flex-start}}
 @media print{body{background:#fff}.action-bar{display:none}.glass-card{box-shadow:none;border:0}.schedule-table{min-width:0;font-size:10pt}.cell-link{background:none;color:#222;padding:0}.td-cell{height:65px}}
+
+
+.query-hint{font-size:.9rem;color:#5b6b7f;background:#f4f8ff;border:1px solid #dbe7f5;border-radius:10px;padding:.7rem .85rem;margin-bottom:.8rem;line-height:1.5}
+.class-result-block{margin-bottom:1.25rem}
+.class-result-title{font-size:1.35rem;text-align:center;margin:1rem 0 .65rem;color:#172033}
+.class-result-card{margin-bottom:1rem}
+@media print{.class-result-block{break-inside:avoid-page}.class-result-title{break-after:avoid}}

@@ -90,9 +90,11 @@ function switchTab(tab){
 }
 function resetSelectors(){ ['sel7','sel8','sel9','selSp'].forEach(id=>$(id).value=''); $('classError').textContent=''; $('teacherError').textContent=''; }
 function queryClass(){
-  const cls=['sel7','sel8','sel9','selSp'].map(id=>$(id).value).find(Boolean);
-  if(!cls){ $('classError').textContent='請先選擇一個班級'; return; }
-  navHistory=[]; displayClassSchedule(cls);
+  const classes=['sel7','sel8','sel9','selSp'].map(id=>$(id).value).filter(Boolean);
+  if(!classes.length){ $('classError').textContent='請至少選擇一個班級'; return; }
+  if(classes.length>4){ $('classError').textContent='最多可同時查詢 4 個班級'; return; }
+  $('classError').textContent='';
+  navHistory=[]; displayClassSchedules(classes);
 }
 function queryTeacher(){
   const t=$('teacherSelect').value;
@@ -129,17 +131,33 @@ function renderTable(cells,mode){
     } h+='</tr>';
   } return h+'</tbody></table>';
 }
-function displayClassSchedule(cls){
-  navHistory.push({type:'class',value:cls});
+function classScheduleBlock(cls){
+  return `<section class="class-result-block"><h3 class="class-result-title">${esc(cls)} 班課表 ${homeroomData[cls]?`<span class="homeroom">（導師：${esc(homeroomData[cls])}）</span>`:''}</h3><div class="glass-card class-result-card" style="padding:0; overflow:hidden;"><div class="table-wrapper">${renderTable(cellsForClass(cls),'class')}</div></div></section>`;
+}
+function displayClassSchedule(cls, pushHistory=true){
+  if(pushHistory) navHistory.push({type:'class',value:cls});
   $('scheduleTitle').innerHTML=`${esc(cls)} 班課表 ${homeroomData[cls]?`<span class="homeroom">（導師：${esc(homeroomData[cls])}）</span>`:''}`;
   $('scheduleTableContainer').innerHTML=renderTable(cellsForClass(cls),'class'); showView('resultView');
 }
-function displayTeacherSchedule(t){
-  navHistory.push({type:'teacher',value:t}); $('scheduleTitle').textContent=`${t} 老師課表`;
+function displayClassSchedules(classes, pushHistory=true){
+  if(pushHistory) navHistory.push({type:'classes',value:[...classes]});
+  const n=classes.length;
+  $('scheduleTitle').textContent=`${n} 個班級課表`;
+  $('scheduleTableContainer').innerHTML=classes.map(classScheduleBlock).join('');
+  showView('resultView');
+}
+function displayTeacherSchedule(t, pushHistory=true){
+  if(pushHistory) navHistory.push({type:'teacher',value:t});
+  $('scheduleTitle').textContent=`${t} 老師課表`;
   $('scheduleTableContainer').innerHTML=renderTable(cellsForTeacher(t),'teacher'); showView('resultView');
 }
 function goBack(){
-  if(navHistory.length<2){showView('queryView');return;} navHistory.pop(); const x=navHistory.pop(); x.type==='class'?displayClassSchedule(x.value):displayTeacherSchedule(x.value);
+  if(navHistory.length<2){showView('queryView');return;}
+  navHistory.pop();
+  const x=navHistory.pop();
+  if(x.type==='classes') displayClassSchedules(x.value,false);
+  else if(x.type==='class') displayClassSchedule(x.value,false);
+  else displayTeacherSchedule(x.value,false);
 }
 function guestLogin(){ const label=$('semesterSelect').value; loadSemester(label); }
 function logout(){ scheduleData=[];homeroomData={};navHistory=[];$('loginPassword').value='';showView('loginView'); }
