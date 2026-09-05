@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="桃園市立經國國民中學國中部課表查詢系統">
+    <meta name="robots" content="noindex">
+    <title>桃園市立經國國民中學課表查詢系統</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="loadingOverlay">
+        <div class="big-spinner"></div>
+        <p>正在載入課表資料，請稍候⋯</p>
+    </div>
+    <div id="loginView" class="view">
+        <div class="glass-card login-card">
+            <div class="login-logo">
+                <div class="logo-icon">📅</div>
+                <h1 id="schoolName">桃園市立經國國民中學</h1>
+                <p id="schoolSubtitle">國中部課表查詢系統</p>
+            </div>
+            <form id="loginForm" autocomplete="off">
+                <div class="form-group">
+                    <label for="semesterSelect">學期</label>
+                    <select id="semesterSelect" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label for="loginUsername">帳號</label>
+                    <input type="text" id="loginUsername" class="form-control" placeholder="請輸入帳號" autocomplete="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密碼</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="請輸入密碼" autocomplete="current-password" required>
+                </div>
+                <div id="loginError" class="alert alert-danger" role="alert"></div>
+                <button type="submit" id="loginBtn" class="btn btn-primary btn-block" style="margin-top:1.25rem"><span id="loginSpinner" class="spinner"></span>登入查詢</button>
+                <button type="button" id="guestBtn" class="btn btn-ghost btn-block" style="margin-top:0.5rem" onclick="guestLogin()">訪客登入</button>
+            </form>
+        </div>
+    </div>
+    <div id="queryView" class="view">
+        <div class="glass-card query-card">
+            <div class="query-header">
+                <div><h2>課表查詢</h2><span id="currentSemester" class="semester-badge"></span></div>
+                <button class="btn btn-ghost logout-btn" onclick="logout()">登出</button>
+            </div>
+            <div class="tab-bar">
+                <button class="tab-btn active" id="tabClass" onclick="switchTab('class')">🏫 班級查詢</button>
+                <button class="tab-btn" id="tabTeacher" onclick="switchTab('teacher')">👤 教師查詢</button>
+            </div>
+            <div id="panelClass" class="tab-panel">
+                <div class="grade-group"><div class="grade-label grade-7">七年級</div><select id="sel7" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
+                <div class="grade-group"><div class="grade-label grade-8">八年級</div><select id="sel8" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
+                <div class="grade-group"><div class="grade-label grade-9">九年級</div><select id="sel9" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
+                <div class="grade-group"><div class="grade-label grade-sp">特殊班</div><select id="selSp" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
+                <div id="classError" class="alert alert-warning"></div>
+                <button class="btn btn-success btn-block" style="margin-top:1rem" onclick="submitClassQuery()">查　詢</button>
+            </div>
+            <div id="panelTeacher" class="tab-panel hidden">
+                <div class="form-group"><label for="subjectSelect">科目</label><select id="subjectSelect" class="form-control"><option value="">— 選擇科目 —</option></select></div>
+                <div class="form-group"><label for="teacherSelect">教師</label><select id="teacherSelect" class="form-control"><option value="">— 請先選擇科目 —</option></select></div>
+                <div id="teacherError" class="alert alert-warning"></div>
+                <button class="btn btn-success btn-block" style="margin-top:1rem" onclick="submitTeacherQuery()">查　詢</button>
+            </div>
+        </div>
+    </div>
+    <div id="resultView" class="view">
+        <div class="result-inner">
+            <div class="action-bar"><div class="action-bar-left"><button id="backBtn" class="btn btn-ghost" onclick="goBack()">← 上一頁</button><button class="btn btn-ghost" onclick="showQueryView()">🔍 查詢</button></div><div class="action-bar-right"><button class="btn btn-print" onclick="printSchedule()">列印</button></div></div>
+            <h2 id="scheduleTitle" class="schedule-title"></h2>
+            <div class="glass-card" style="padding:0; overflow:hidden;"><div id="scheduleTableContainer" class="table-wrapper"></div></div>
+        </div>
+    </div>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+    <script>
+        document.title = CONFIG.SCHOOL_NAME + ' 課表查詢';
+        document.getElementById('schoolName').textContent = CONFIG.SCHOOL_NAME;
+        document.getElementById('schoolSubtitle').textContent = CONFIG.SCHOOL_SUBTITLE;
+    </script>
+</body>
+</html>
