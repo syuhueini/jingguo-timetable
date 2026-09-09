@@ -1,4 +1,4 @@
-/* v2026.09.09-2｜桃園市立經國國民中學｜課表查詢前端
+/* v2026.09.09-3｜桃園市立經國國民中學｜課表查詢前端
  * 班級：可同時查詢 1～4 班。
  * 教師：科目可複選；每科可選 0～多位教師；不同科目的教師可自由混選。
  */
@@ -278,10 +278,13 @@ function renderCombinedTeacherTable(cells){
     h+=`<tr><td class="td-period"><b>第${p}節</b><small>${tm.start&&tm.start!=='——'?`${tm.start}<br>${tm.end}`:''}</small></td>`;
     for(let d=1;d<=5;d++){
       const entries=cells[`${d}-${p}`]||[];
-      if(!entries.length){ h+='<td class="td-empty common-free-cell"><span>空堂</span></td>'; continue; }
+      if(!entries.length){ h+='<td class="td-empty"></td>'; continue; }
       h+='<td class="td-cell teacher-combined-cell"><div class="teacher-entries">'+entries.map(e=>{
-        const cls=e.classes.length?e.classes.join('、'):'未標示班級';
-        return `<div class="teacher-entry"><div class="teacher-entry-name">${esc(e.teacher)}</div><div class="teacher-entry-class">${esc(cls)}</div><div class="teacher-entry-subject">${esc(e.subject)}</div></div>`;
+        const classes=e.classes.length?e.classes:[];
+        const classHtml=classes.length
+          ? classes.map(cls=>`<button class="cell-link teacher-class-link" onclick="displayClassSchedule('${esc(cls)}')">${esc(cls)}</button>`).join('')
+          : '<span class="teacher-no-class">未標示班級</span>';
+        return `<div class="teacher-entry"><button class="teacher-entry-name teacher-name-link" onclick="displayTeacherSchedule('${esc(e.teacher)}')">${esc(e.teacher)}</button><div class="teacher-entry-class">${classHtml}</div><div class="teacher-entry-subject">${esc(e.subject)}</div></div>`;
       }).join('')+'</div></td>';
     }
     h+='</tr>';
@@ -295,13 +298,22 @@ function findCommonFreeSlots(teachers){
   }
   return slots;
 }
-function renderCommonFreeSlots(teachers){
+function renderCommonFreeSlots(teachers, visible=false){
   const slots=findCommonFreeSlots(teachers);
+  if(!visible) return '';
   if(!slots.length) return `<section class="common-free-section"><h3>🟢 ${teachers.length} 位教師共同空堂</h3><div class="common-free-none">目前沒有找到所有選定教師同時無課的時段。</div></section>`;
   const byDay={};
   slots.forEach(x=>(byDay[x.day] ||= []).push(x.period));
   const items=Object.entries(byDay).map(([d,ps])=>`<div class="common-free-day"><b>星期${DAYS[Number(d)-1]}</b><span>${ps.map(p=>`第${p}節`).join('、')}</span></div>`).join('');
   return `<section class="common-free-section"><h3>🟢 ${teachers.length} 位教師共同空堂</h3><p>以下時段所有選定教師都沒有課，可作為會議或共同討論時間。</p><div class="common-free-list">${items}</div></section>`;
+}
+function toggleCommonFreeSlots(){
+  const section=$('commonFreeSlots');
+  const btn=$('commonFreeBtn');
+  if(!section || !btn) return;
+  const visible=section.classList.toggle('show-common-free');
+  btn.textContent=visible?'↩ 隱藏共同空堂':'🟢 查看共同空堂';
+  btn.setAttribute('aria-expanded',visible?'true':'false');
 }
 function displayTeacherSchedules(teachers,subjects,selected,pushHistory=true){
   if(pushHistory) navHistory.push({type:'teachers',value:[...teachers],subjects:[...subjects],selected:serializeTeacherSelections(selected)});
@@ -311,7 +323,8 @@ function displayTeacherSchedules(teachers,subjects,selected,pushHistory=true){
   }).join('、');
   $('scheduleTitle').textContent=`教師綜合課表（${teachers.length} 位教師）`;
   const cells=combinedTeacherCells(teachers);
-  $('scheduleTableContainer').innerHTML=`<div class="teacher-query-summary">查詢條件：${esc(subjectText)}</div><div class="glass-card teacher-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderCombinedTeacherTable(cells)}</div></div>${renderCommonFreeSlots(teachers)}`;
+  const buttonHtml=teachers.length>1?`<button id="commonFreeBtn" class="btn btn-common-free" type="button" onclick="toggleCommonFreeSlots()" aria-expanded="false">🟢 查看共同空堂</button>`:'';
+  $('scheduleTableContainer').innerHTML=`<div class="teacher-query-summary-row"><div class="teacher-query-summary">查詢條件：${esc(subjectText)}</div>${buttonHtml}</div><div class="glass-card teacher-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderCombinedTeacherTable(cells)}</div></div><div id="commonFreeSlots" class="common-free-collapsible">${renderCommonFreeSlots(teachers,false)}</div>`;
   showView('resultView');
 }
 function serializeTeacherSelections(selected){
