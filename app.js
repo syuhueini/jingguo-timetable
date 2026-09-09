@@ -1,4 +1,4 @@
-/* 桃園市立經國國民中學｜課表查詢前端
+/* v2026.09.09-2｜桃園市立經國國民中學｜課表查詢前端
  * 班級：可同時查詢 1～4 班。
  * 教師：科目可複選；每科可選 0～多位教師；不同科目的教師可自由混選。
  */
@@ -140,13 +140,26 @@ function updateTeacherGroups(){
       }).join('')}</div>
     </section>`;
   }).join('');
-  document.querySelectorAll('input[name="teacherChoice"]').forEach(cb=>cb.addEventListener('change',updateTeacherCount));
+  document.querySelectorAll('input[name="teacherChoice"]').forEach(cb=>cb.addEventListener('change',onTeacherChoiceChange));
   updateTeacherCount();
 }
+function getUniqueSelectedTeacherNames(){
+  return [...new Set([...document.querySelectorAll('input[name="teacherChoice"]:checked')].map(cb=>cb.value.split('||')[1]))];
+}
 function updateTeacherCount(){
-  const n=document.querySelectorAll('input[name="teacherChoice"]:checked').length;
+  const n=getUniqueSelectedTeacherNames().length;
   $('teacherCount').textContent=`已指定 ${n} / ${MAX_TEACHER_SELECTIONS} 位教師`;
   $('teacherCount').classList.toggle('selection-limit-hit', n >= MAX_TEACHER_SELECTIONS);
+}
+function onTeacherChoiceChange(e){
+  const n=getUniqueSelectedTeacherNames().length;
+  if(n>MAX_TEACHER_SELECTIONS){
+    e.target.checked=false;
+    $('teacherError').textContent=`最多可同時指定 ${MAX_TEACHER_SELECTIONS} 位不同教師。`;
+  } else {
+    $('teacherError').textContent='';
+  }
+  updateTeacherCount();
 }
 
 function showView(id){
