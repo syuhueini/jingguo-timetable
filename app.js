@@ -9,6 +9,7 @@ let navHistory = [];
 const DAYS = ['一','二','三','四','五'];
 const PERIODS = [0,1,2,3,4,5,6,7,8];
 const MAX_CLASS_SELECTIONS = 4;
+const MAX_TEACHER_SELECTIONS = 10;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -125,7 +126,7 @@ function updateTeacherGroups(){
   const previous=getTeacherSelections();
   if(!subjects.length){
     $('teacherGroups').innerHTML='<div class="empty-selection">請先選擇科目</div>';
-    $('teacherCount').textContent='已指定 0 位教師';
+    $('teacherCount').textContent=`已指定 0 / ${MAX_TEACHER_SELECTIONS} 位教師`;
     return;
   }
   $('teacherGroups').innerHTML=subjects.map(subject=>{
@@ -144,7 +145,8 @@ function updateTeacherGroups(){
 }
 function updateTeacherCount(){
   const n=document.querySelectorAll('input[name="teacherChoice"]:checked').length;
-  $('teacherCount').textContent=`已指定 ${n} 位教師`;
+  $('teacherCount').textContent=`已指定 ${n} / ${MAX_TEACHER_SELECTIONS} 位教師`;
+  $('teacherCount').classList.toggle('selection-limit-hit', n >= MAX_TEACHER_SELECTIONS);
 }
 
 function showView(id){
@@ -176,6 +178,10 @@ function queryTeacher(){
   });
   const unique=[...new Set(teachers)].sort(sortChinese);
   if(!unique.length){ $('teacherError').textContent='找不到符合條件的教師。'; return; }
+  if(unique.length>MAX_TEACHER_SELECTIONS){
+    $('teacherError').textContent=`目前條件會包含 ${unique.length} 位教師，超過上限 ${MAX_TEACHER_SELECTIONS} 位。請縮小科目或指定教師。`;
+    return;
+  }
   $('teacherError').textContent='';
   navHistory=[]; displayTeacherSchedules(unique,subjects,selected);
 }
@@ -233,10 +239,66 @@ function displayTeacherSchedule(t,pushHistory=true){
   $('scheduleTitle').textContent=`${t} 老師課表`;
   $('scheduleTableContainer').innerHTML=renderTable(cellsForTeacher(t),'teacher'); showView('resultView');
 }
+function combinedTeacherCells(teachers){
+  const wanted=new Set(teachers), cells={};
+  scheduleData.forEach(r=>{
+    const teacher=r.teachername;
+    if(!wanted.has(teacher)) return;
+    for(let d=1;d<=5;d++) for(const p of PERIODS){
+      const subject=r[`s${d}${p}`];
+      if(!subject) continue;
+      const classes=(r[`c${d}${p}`]||'').split(/\s+/).filter(Boolean);
+      const k=`${d}-${p}`;
+      (cells[k] ||= []).push({teacher,subject,classes});
+    }
+  });
+  Object.values(cells).forEach(list=>{
+    list.sort((a,b)=>sortChinese(a.teacher,b.teacher));
+  });
+  return cells;
+}
+function renderCombinedTeacherTable(cells){
+  let h='<table class="schedule-table teacher-combined-table"><thead><tr><th>節次</th>'+DAYS.map(d=>`<th>星期${d}</th>`).join('')+'</tr></thead><tbody>';
+  const ps=[1,2,3,4,5,6,7,8];
+  for(const p of ps){
+    const tm=CONFIG.PERIOD_TIMES[p]||{};
+    h+=`<tr><td class="td-period"><b>第${p}節</b><small>${tm.start&&tm.start!=='——'?`${tm.start}<br>${tm.end}`:''}</small></td>`;
+    for(let d=1;d<=5;d++){
+      const entries=cells[`${d}-${p}`]||[];
+      if(!entries.length){ h+='<td class="td-empty common-free-cell"><span>空堂</span></td>'; continue; }
+      h+='<td class="td-cell teacher-combined-cell"><div class="teacher-entries">'+entries.map(e=>{
+        const cls=e.classes.length?e.classes.join('、'):'未標示班級';
+        return `<div class="teacher-entry"><div class="teacher-entry-name">${esc(e.teacher)}</div><div class="teacher-entry-class">${esc(cls)}</div><div class="teacher-entry-subject">${esc(e.subject)}</div></div>`;
+      }).join('')+'</div></td>';
+    }
+    h+='</tr>';
+  }
+  return h+'</tbody></table>';
+}
+function findCommonFreeSlots(teachers){
+  const cells=combinedTeacherCells(teachers), slots=[];
+  for(let d=1;d<=5;d++) for(const p of [1,2,3,4,5,6,7,8]){
+    if(!(cells[`${d}-${p}`]||[]).length) slots.push({day:d,period:p});
+  }
+  return slots;
+}
+function renderCommonFreeSlots(teachers){
+  const slots=findCommonFreeSlots(teachers);
+  if(!slots.length) return `<section class="common-free-section"><h3>🟢 ${teachers.length} 位教師共同空堂</h3><div class="common-free-none">目前沒有找到所有選定教師同時無課的時段。</div></section>`;
+  const byDay={};
+  slots.forEach(x=>(byDay[x.day] ||= []).push(x.period));
+  const items=Object.entries(byDay).map(([d,ps])=>`<div class="common-free-day"><b>星期${DAYS[Number(d)-1]}</b><span>${ps.map(p=>`第${p}節`).join('、')}</span></div>`).join('');
+  return `<section class="common-free-section"><h3>🟢 ${teachers.length} 位教師共同空堂</h3><p>以下時段所有選定教師都沒有課，可作為會議或共同討論時間。</p><div class="common-free-list">${items}</div></section>`;
+}
 function displayTeacherSchedules(teachers,subjects,selected,pushHistory=true){
   if(pushHistory) navHistory.push({type:'teachers',value:[...teachers],subjects:[...subjects],selected:serializeTeacherSelections(selected)});
-  $('scheduleTitle').textContent=`${teachers.length} 位教師課表`;
-  $('scheduleTableContainer').innerHTML=teachers.map(t=>`<section class="teacher-result-block"><h3 class="teacher-result-title">${esc(t)} 老師課表</h3><div class="glass-card teacher-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderTable(cellsForTeacher(t),'teacher')}</div></div></section>`).join('');
+  const subjectText=subjects.map(s=>{
+    const chosen=selected&&selected[s] instanceof Set?[...selected[s]]:(selected&&Array.isArray(selected[s])?selected[s]:[]);
+    return chosen.length?`${s}－${chosen.join('、')}`:`${s}（全部教師）`;
+  }).join('、');
+  $('scheduleTitle').textContent=`教師綜合課表（${teachers.length} 位教師）`;
+  const cells=combinedTeacherCells(teachers);
+  $('scheduleTableContainer').innerHTML=`<div class="teacher-query-summary">查詢條件：${esc(subjectText)}</div><div class="glass-card teacher-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderCombinedTeacherTable(cells)}</div></div>${renderCommonFreeSlots(teachers)}`;
   showView('resultView');
 }
 function serializeTeacherSelections(selected){

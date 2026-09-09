@@ -46,13 +46,13 @@
             </div>
 
             <div id="panelTeacher" class="tab-panel hidden">
-                <div class="query-hint">先選科目，再選教師。<b>科目選了但沒有指定教師</b>時，會顯示該科所有教師；教師可以跨科自由複選。</div>
+                <div class="query-hint">先選科目，再選教師。<b>科目選了但沒有指定教師</b>時，會顯示該科所有教師；教師可以跨科自由複選，最多 10 位。</div>
                 <div class="section-label">① 選擇科目（可複選）</div>
                 <div id="subjectGroups" class="check-grid subject-grid"></div>
                 <div class="selection-count" id="subjectCount">已選 0 個科目</div>
-                <div class="section-label teacher-section-title">② 選擇教師（可跨科複選）</div>
+                <div class="section-label teacher-section-title">② 選擇教師（可跨科複選，最多 10 位）</div>
                 <div id="teacherGroups" class="teacher-groups"><div class="empty-selection">請先選擇科目</div></div>
-                <div class="selection-count" id="teacherCount">已指定 0 位教師</div>
+                <div class="selection-count" id="teacherCount">已指定 0 / 10 位教師</div>
                 <div id="teacherError" class="alert alert-warning"></div>
                 <button class="btn btn-success btn-block" style="margin-top:1rem" onclick="submitTeacherQuery()">查　詢</button>
             </div>
