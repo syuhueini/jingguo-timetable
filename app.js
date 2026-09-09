@@ -1,10 +1,14 @@
-/* 桃園市立經國國民中學｜課表查詢前端 */
+/* 桃園市立經國國民中學｜課表查詢前端
+ * 班級：可同時查詢 1～4 班。
+ * 教師：科目可複選；每科可選 0～多位教師；不同科目的教師可自由混選。
+ */
 let scheduleData = [];
 let homeroomData = {};
 let subjectTeachers = {};
 let navHistory = [];
 const DAYS = ['一','二','三','四','五'];
 const PERIODS = [0,1,2,3,4,5,6,7,8];
+const MAX_CLASS_SELECTIONS = 4;
 
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -29,9 +33,15 @@ function parseCSV(text) {
   }).filter(r=>r.teachername);
 }
 function normalizeSubject(s){ return s.replace(/輔導$/,'').replace(/加強$/,'').trim() || s; }
+function sortChinese(a,b){ return String(a).localeCompare(String(b),'zh-Hant-TW'); }
+function sortSubjects(a,b){
+  const len=a.length-b.length;
+  return len || sortChinese(a,b);
+}
 
 async function loadSemester(label) {
   $('loadingOverlay').classList.add('show');
+  $('loginError').textContent='';
   try {
     const csvUrl=CONFIG.SEMESTERS[label];
     const csvRes=await fetch(csvUrl);
@@ -50,6 +60,7 @@ async function loadSemester(label) {
     $('loginError').textContent=`載入失敗：${err.message}`;
   } finally { $('loadingOverlay').classList.remove('show'); }
 }
+
 function buildIndexes(){
   subjectTeachers={};
   scheduleData.forEach(row=>{
@@ -67,45 +78,111 @@ function allClasses(){
   }});
   return [...set].sort((a,b)=>Number(a)-Number(b));
 }
-function populateClassSelectors(){
+function classGroups(){
   const groups={sel7:[],sel8:[],sel9:[],selSp:[]};
   allClasses().forEach(c=>/^7\d+$/.test(c)?groups.sel7.push(c):/^8\d+$/.test(c)?groups.sel8.push(c):/^9\d+$/.test(c)?groups.sel9.push(c):groups.selSp.push(c));
-  for(const [id,list] of Object.entries(groups)) $(id).innerHTML='<option value="">— 選擇班級 —</option>'+list.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  return groups;
 }
+function populateClassSelectors(){
+  const labels={sel7:'七年級',sel8:'八年級',sel9:'九年級',selSp:'特殊班'};
+  const groups=classGroups();
+  $('classGroups').innerHTML=Object.entries(groups).filter(([,list])=>list.length).map(([key,list])=>`
+    <section class="class-grade-section">
+      <div class="section-label grade-title">${labels[key]}</div>
+      <div class="check-grid class-grid">${list.map(c=>`<label class="check-option class-option"><input type="checkbox" name="classChoice" value="${esc(c)}"><span>${esc(c)}</span></label>`).join('')}</div>
+    </section>`).join('');
+  document.querySelectorAll('input[name="classChoice"]').forEach(cb=>cb.addEventListener('change',onClassChoiceChange));
+  updateClassCount();
+}
+function onClassChoiceChange(e){
+  const selected=[...document.querySelectorAll('input[name="classChoice"]:checked')];
+  if(selected.length>MAX_CLASS_SELECTIONS){ e.target.checked=false; $('classError').textContent='最多可同時查詢 4 個班級。'; }
+  else $('classError').textContent='';
+  updateClassCount();
+}
+function getSelectedClasses(){ return [...document.querySelectorAll('input[name="classChoice"]:checked')].map(x=>x.value); }
+function updateClassCount(){ $('classCount').textContent=`已選 ${getSelectedClasses().length} / ${MAX_CLASS_SELECTIONS}`; }
+
 function populateSubjects(){
-  $('subjectSelect').innerHTML='<option value="">— 選擇科目 —</option>'+Object.keys(subjectTeachers).sort().map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  $('teacherSelect').innerHTML='<option value="">— 請先選擇科目 —</option>';
+  const subjects=Object.keys(subjectTeachers).sort(sortSubjects);
+  $('subjectGroups').innerHTML=subjects.map(s=>`<label class="check-option subject-option"><input type="checkbox" name="subjectChoice" value="${esc(s)}"><span>${esc(s)}</span></label>`).join('');
+  document.querySelectorAll('input[name="subjectChoice"]').forEach(cb=>cb.addEventListener('change',updateTeacherGroups));
+  updateTeacherGroups();
 }
-function populateTeachers(){
-  const s=$('subjectSelect').value;
-  $('teacherSelect').innerHTML='<option value="">— 選擇教師 —</option>'+[...(subjectTeachers[s]||[])].sort().map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join('');
+function getSelectedSubjects(){ return [...document.querySelectorAll('input[name="subjectChoice"]:checked')].map(x=>x.value); }
+function teacherCheckboxId(subject,teacher){ return 'teacher-' + encodeURIComponent(subject+'||'+teacher).replace(/%/g,'_'); }
+function getTeacherSelections(){
+  const out={};
+  document.querySelectorAll('input[name="teacherChoice"]:checked').forEach(cb=>{
+    const [subject,teacher]=cb.value.split('||');
+    (out[subject] ||= new Set()).add(teacher);
+  });
+  return out;
 }
+function updateTeacherGroups(){
+  const subjects=getSelectedSubjects();
+  $('subjectCount').textContent=`已選 ${subjects.length} 個科目`;
+  const previous=getTeacherSelections();
+  if(!subjects.length){
+    $('teacherGroups').innerHTML='<div class="empty-selection">請先選擇科目</div>';
+    $('teacherCount').textContent='已指定 0 位教師';
+    return;
+  }
+  $('teacherGroups').innerHTML=subjects.map(subject=>{
+    const teachers=[...(subjectTeachers[subject]||[])].sort(sortChinese);
+    const selected=previous[subject] || new Set();
+    return `<section class="teacher-subject-group">
+      <div class="teacher-group-header"><span>${esc(subject)}</span><small>不選教師＝顯示本學科全部教師</small></div>
+      <div class="check-grid teacher-grid">${teachers.map(t=>{
+        const id=teacherCheckboxId(subject,t);
+        return `<label class="check-option teacher-option"><input id="${id}" type="checkbox" name="teacherChoice" value="${esc(subject+'||'+t)}" ${selected.has(t)?'checked':''}><span>${esc(t)}</span></label>`;
+      }).join('')}</div>
+    </section>`;
+  }).join('');
+  document.querySelectorAll('input[name="teacherChoice"]').forEach(cb=>cb.addEventListener('change',updateTeacherCount));
+  updateTeacherCount();
+}
+function updateTeacherCount(){
+  const n=document.querySelectorAll('input[name="teacherChoice"]:checked').length;
+  $('teacherCount').textContent=`已指定 ${n} 位教師`;
+}
+
 function showView(id){
   ['loginView','queryView','resultView'].forEach(v=>$(v).style.display='none');
   $(id).style.display=id==='resultView'?'block':'flex';
 }
 function switchTab(tab){
-  $('tabClass').classList.toggle('active',tab==='class'); $('tabTeacher').classList.toggle('active',tab==='teacher');
-  $('panelClass').classList.toggle('hidden',tab!=='class'); $('panelTeacher').classList.toggle('hidden',tab!=='teacher');
+  $('tabClass').classList.toggle('active',tab==='class');
+  $('tabTeacher').classList.toggle('active',tab==='teacher');
+  $('panelClass').classList.toggle('hidden',tab!=='class');
+  $('panelTeacher').classList.toggle('hidden',tab!=='teacher');
 }
-function resetSelectors(){ ['sel7','sel8','sel9','selSp'].forEach(id=>$(id).value=''); $('classError').textContent=''; $('teacherError').textContent=''; }
 function queryClass(){
-  const classes=['sel7','sel8','sel9','selSp'].map(id=>$(id).value).filter(Boolean);
-  if(!classes.length){ $('classError').textContent='請至少選擇一個班級'; return; }
-  if(classes.length>4){ $('classError').textContent='最多可同時查詢 4 個班級'; return; }
+  const classes=getSelectedClasses();
+  if(!classes.length){ $('classError').textContent='請至少選擇一個班級。'; return; }
+  if(classes.length>MAX_CLASS_SELECTIONS){ $('classError').textContent='最多可同時查詢 4 個班級。'; return; }
   $('classError').textContent='';
   navHistory=[]; displayClassSchedules(classes);
 }
 function queryTeacher(){
-  const t=$('teacherSelect').value;
-  if(!t){ $('teacherError').textContent='請先選擇科目與教師'; return; }
-  navHistory=[]; displayTeacherSchedule(t);
+  const subjects=getSelectedSubjects();
+  if(!subjects.length){ $('teacherError').textContent='請至少選擇一個科目。'; return; }
+  const selected=getTeacherSelections();
+  const teachers=[];
+  subjects.forEach(subject=>{
+    const chosen=selected[subject];
+    if(chosen && chosen.size) chosen.forEach(t=>teachers.push(t));
+    else (subjectTeachers[subject]||new Set()).forEach(t=>teachers.push(t));
+  });
+  const unique=[...new Set(teachers)].sort(sortChinese);
+  if(!unique.length){ $('teacherError').textContent='找不到符合條件的教師。'; return; }
+  $('teacherError').textContent='';
+  navHistory=[]; displayTeacherSchedules(unique,subjects,selected);
 }
-
-// HTML 按鈕使用的事件名稱（保留原本查詢函式）
 function submitClassQuery(){ queryClass(); }
 function submitTeacherQuery(){ queryTeacher(); }
 function showQueryView(){ showView('queryView'); }
+
 function cellsForClass(cls){
   const cells={};
   scheduleData.forEach(r=>{for(let d=1;d<=5;d++) for(const p of PERIODS){
@@ -124,48 +201,70 @@ function cellsForTeacher(t){
 function renderTable(cells,mode){
   let h='<table class="schedule-table"><thead><tr><th>節次</th>'+DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr></thead><tbody>';
   const ps=Object.keys(cells).some(k=>k.endsWith('-0'))?[0,1,2,3,4,5,6,7,8]:[1,2,3,4,5,6,7,8];
-  for(const p of ps){ const tm=CONFIG.PERIOD_TIMES[p]||{}; h+=`<tr><td class="td-period"><b>${p===0?'早自習':`第${p}節`}</b><small>${tm.start&&tm.start!=='——'?`${tm.start}<br>${tm.end}`:''}</small></td>`;
-    for(let d=1;d<=5;d++){ const c=cells[`${d}-${p}`]; if(!c){h+='<td class="td-empty"></td>';continue;}
+  for(const p of ps){
+    const tm=CONFIG.PERIOD_TIMES[p]||{};
+    h+=`<tr><td class="td-period"><b>${p===0?'早自習':`第${p}節`}</b><small>${tm.start&&tm.start!=='——'?`${tm.start}<br>${tm.end}`:''}</small></td>`;
+    for(let d=1;d<=5;d++){
+      const c=cells[`${d}-${p}`];
+      if(!c){h+='<td class="td-empty"></td>';continue;}
       const items=mode==='class'?c.teachers:c.classes;
       h+=`<td class="td-cell"><div class="cell-subject">${esc(c.subject)}</div><div class="cell-items">${items.map(x=>`<button class="cell-link" onclick="${mode==='class'?`displayTeacherSchedule('${esc(x)}')`:`displayClassSchedule('${esc(x)}')`}">${esc(x)}</button>`).join('')}</div></td>`;
-    } h+='</tr>';
-  } return h+'</tbody></table>';
+    }
+    h+='</tr>';
+  }
+  return h+'</tbody></table>';
 }
 function classScheduleBlock(cls){
-  return `<section class="class-result-block"><h3 class="class-result-title">${esc(cls)} 班課表 ${homeroomData[cls]?`<span class="homeroom">（導師：${esc(homeroomData[cls])}）</span>`:''}</h3><div class="glass-card class-result-card" style="padding:0; overflow:hidden;"><div class="table-wrapper">${renderTable(cellsForClass(cls),'class')}</div></div></section>`;
+  return `<section class="class-result-block"><h3 class="class-result-title">${esc(cls)} 班課表 ${homeroomData[cls]?`<span class="homeroom">（導師：${esc(homeroomData[cls])}）</span>`:''}</h3><div class="glass-card class-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderTable(cellsForClass(cls),'class')}</div></div></section>`;
 }
-function displayClassSchedule(cls, pushHistory=true){
+function displayClassSchedule(cls,pushHistory=true){
   if(pushHistory) navHistory.push({type:'class',value:cls});
   $('scheduleTitle').innerHTML=`${esc(cls)} 班課表 ${homeroomData[cls]?`<span class="homeroom">（導師：${esc(homeroomData[cls])}）</span>`:''}`;
   $('scheduleTableContainer').innerHTML=renderTable(cellsForClass(cls),'class'); showView('resultView');
 }
-function displayClassSchedules(classes, pushHistory=true){
+function displayClassSchedules(classes,pushHistory=true){
   if(pushHistory) navHistory.push({type:'classes',value:[...classes]});
-  const n=classes.length;
-  $('scheduleTitle').textContent=`${n} 個班級課表`;
+  $('scheduleTitle').textContent=`${classes.length} 個班級課表`;
   $('scheduleTableContainer').innerHTML=classes.map(classScheduleBlock).join('');
   showView('resultView');
 }
-function displayTeacherSchedule(t, pushHistory=true){
+function displayTeacherSchedule(t,pushHistory=true){
   if(pushHistory) navHistory.push({type:'teacher',value:t});
   $('scheduleTitle').textContent=`${t} 老師課表`;
   $('scheduleTableContainer').innerHTML=renderTable(cellsForTeacher(t),'teacher'); showView('resultView');
 }
+function displayTeacherSchedules(teachers,subjects,selected,pushHistory=true){
+  if(pushHistory) navHistory.push({type:'teachers',value:[...teachers],subjects:[...subjects],selected:serializeTeacherSelections(selected)});
+  $('scheduleTitle').textContent=`${teachers.length} 位教師課表`;
+  $('scheduleTableContainer').innerHTML=teachers.map(t=>`<section class="teacher-result-block"><h3 class="teacher-result-title">${esc(t)} 老師課表</h3><div class="glass-card teacher-result-card" style="padding:0;overflow:hidden"><div class="table-wrapper">${renderTable(cellsForTeacher(t),'teacher')}</div></div></section>`).join('');
+  showView('resultView');
+}
+function serializeTeacherSelections(selected){
+  const out={}; Object.entries(selected||{}).forEach(([s,set])=>out[s]=[...set]); return out;
+}
 function goBack(){
   if(navHistory.length<2){showView('queryView');return;}
-  navHistory.pop();
-  const x=navHistory.pop();
+  navHistory.pop(); const x=navHistory.pop();
   if(x.type==='classes') displayClassSchedules(x.value,false);
   else if(x.type==='class') displayClassSchedule(x.value,false);
+  else if(x.type==='teachers') displayTeacherSchedules(x.value,x.subjects,x.selected,false);
   else displayTeacherSchedule(x.value,false);
 }
 function guestLogin(){ const label=$('semesterSelect').value; loadSemester(label); }
 function logout(){ scheduleData=[];homeroomData={};navHistory=[];$('loginPassword').value='';showView('loginView'); }
 function printSchedule(){ window.print(); }
 
+// 讓結果頁面的教師按鈕仍可點回單一教師課表。
+window.displayTeacherSchedule=displayTeacherSchedule;
+window.displayClassSchedule=displayClassSchedule;
+
+
 document.addEventListener('DOMContentLoaded',()=>{
   $('semesterSelect').innerHTML=Object.keys(CONFIG.SEMESTERS).map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
-  $('loginForm').addEventListener('submit',e=>{e.preventDefault(); if($('loginUsername').value===CONFIG.USERNAME && $('loginPassword').value===CONFIG.PASSWORD) loadSemester($('semesterSelect').value); else $('loginError').textContent='帳號或密碼錯誤；也可以直接使用「訪客登入」。';});
-  $('subjectSelect').addEventListener('change',populateTeachers);
+  $('loginForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    if($('loginUsername').value===CONFIG.USERNAME && $('loginPassword').value===CONFIG.PASSWORD) loadSemester($('semesterSelect').value);
+    else $('loginError').textContent='帳號或密碼錯誤；也可以直接使用「訪客登入」。';
+  });
   showView('loginView');
 });

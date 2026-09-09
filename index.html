@@ -12,10 +12,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="loadingOverlay">
-        <div class="big-spinner"></div>
-        <p>正在載入課表資料，請稍候⋯</p>
-    </div>
+    <div id="loadingOverlay"><div class="big-spinner"></div><p>正在載入課表資料，請稍候⋯</p></div>
+
     <div id="loginView" class="view">
         <div class="glass-card login-card">
             <div class="login-logo">
@@ -24,58 +22,51 @@
                 <p id="schoolSubtitle">國中部課表查詢系統</p>
             </div>
             <form id="loginForm" autocomplete="off">
-                <div class="form-group">
-                    <label for="semesterSelect">學期</label>
-                    <select id="semesterSelect" class="form-control"></select>
-                </div>
-                <div class="form-group">
-                    <label for="loginUsername">帳號</label>
-                    <input type="text" id="loginUsername" class="form-control" placeholder="請輸入帳號" autocomplete="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">密碼</label>
-                    <input type="password" id="loginPassword" class="form-control" placeholder="請輸入密碼" autocomplete="current-password" required>
-                </div>
+                <div class="form-group"><label for="semesterSelect">學期</label><select id="semesterSelect" class="form-control"></select></div>
+                <div class="form-group"><label for="loginUsername">帳號</label><input type="text" id="loginUsername" class="form-control" placeholder="請輸入帳號" autocomplete="username" required></div>
+                <div class="form-group"><label for="loginPassword">密碼</label><input type="password" id="loginPassword" class="form-control" placeholder="請輸入密碼" autocomplete="current-password" required></div>
                 <div id="loginError" class="alert alert-danger" role="alert"></div>
                 <button type="submit" id="loginBtn" class="btn btn-primary btn-block" style="margin-top:1.25rem"><span id="loginSpinner" class="spinner"></span>登入查詢</button>
-                <button type="button" id="guestBtn" class="btn btn-ghost btn-block" style="margin-top:0.5rem" onclick="guestLogin()">訪客登入</button>
+                <button type="button" id="guestBtn" class="btn btn-ghost btn-block" style="margin-top:.5rem" onclick="guestLogin()">訪客登入</button>
             </form>
         </div>
     </div>
+
     <div id="queryView" class="view">
         <div class="glass-card query-card">
-            <div class="query-header">
-                <div><h2>課表查詢</h2><span id="currentSemester" class="semester-badge"></span></div>
-                <button class="btn btn-ghost logout-btn" onclick="logout()">登出</button>
-            </div>
-            <div class="tab-bar">
-                <button class="tab-btn active" id="tabClass" onclick="switchTab('class')">🏫 班級查詢</button>
-                <button class="tab-btn" id="tabTeacher" onclick="switchTab('teacher')">👤 教師查詢</button>
-            </div>
+            <div class="query-header"><div><h2>課表查詢</h2><span id="currentSemester" class="semester-badge"></span></div><button class="btn btn-ghost logout-btn" onclick="logout()">登出</button></div>
+            <div class="tab-bar"><button class="tab-btn active" id="tabClass" onclick="switchTab('class')">🏫 班級查詢</button><button class="tab-btn" id="tabTeacher" onclick="switchTab('teacher')">👤 教師查詢</button></div>
+
             <div id="panelClass" class="tab-panel">
-                <div class="query-hint">可同時選擇 1～4 個班級，按「查詢」後會一次顯示所有選取班級的課表。</div>
-                <div class="grade-group"><div class="grade-label grade-7">七年級</div><select id="sel7" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
-                <div class="grade-group"><div class="grade-label grade-8">八年級</div><select id="sel8" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
-                <div class="grade-group"><div class="grade-label grade-9">九年級</div><select id="sel9" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
-                <div class="grade-group"><div class="grade-label grade-sp">特殊班</div><select id="selSp" class="form-control grade-select"><option value="">— 選擇班級 —</option></select></div>
+                <div class="query-hint">可同時選擇 <b>1～4 個班級</b>，同一年級也可以複選；不同年級也可以混選。</div>
+                <div id="classGroups"></div>
+                <div class="selection-count" id="classCount">已選 0 / 4</div>
                 <div id="classError" class="alert alert-warning"></div>
                 <button class="btn btn-success btn-block" style="margin-top:1rem" onclick="submitClassQuery()">查　詢</button>
             </div>
+
             <div id="panelTeacher" class="tab-panel hidden">
-                <div class="form-group"><label for="subjectSelect">科目</label><select id="subjectSelect" class="form-control"><option value="">— 選擇科目 —</option></select></div>
-                <div class="form-group"><label for="teacherSelect">教師</label><select id="teacherSelect" class="form-control"><option value="">— 請先選擇科目 —</option></select></div>
+                <div class="query-hint">先選科目，再選教師。<b>科目選了但沒有指定教師</b>時，會顯示該科所有教師；教師可以跨科自由複選。</div>
+                <div class="section-label">① 選擇科目（可複選）</div>
+                <div id="subjectGroups" class="check-grid subject-grid"></div>
+                <div class="selection-count" id="subjectCount">已選 0 個科目</div>
+                <div class="section-label teacher-section-title">② 選擇教師（可跨科複選）</div>
+                <div id="teacherGroups" class="teacher-groups"><div class="empty-selection">請先選擇科目</div></div>
+                <div class="selection-count" id="teacherCount">已指定 0 位教師</div>
                 <div id="teacherError" class="alert alert-warning"></div>
                 <button class="btn btn-success btn-block" style="margin-top:1rem" onclick="submitTeacherQuery()">查　詢</button>
             </div>
         </div>
     </div>
+
     <div id="resultView" class="view">
         <div class="result-inner">
             <div class="action-bar"><div class="action-bar-left"><button id="backBtn" class="btn btn-ghost" onclick="goBack()">← 上一頁</button><button class="btn btn-ghost" onclick="showQueryView()">🔍 查詢</button></div><div class="action-bar-right"><button class="btn btn-print" onclick="printSchedule()">列印</button></div></div>
             <h2 id="scheduleTitle" class="schedule-title"></h2>
-            <div class="glass-card" style="padding:0; overflow:hidden;"><div id="scheduleTableContainer" class="table-wrapper"></div></div>
+            <div class="glass-card" style="padding:0;overflow:hidden"><div id="scheduleTableContainer" class="table-wrapper"></div></div>
         </div>
     </div>
+
     <script src="config.js"></script>
     <script src="app.js"></script>
     <script>

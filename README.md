@@ -1,29 +1,44 @@
-# 桃園市立經國國民中學課表查詢系統
+# 桃園市立經國國民中學課表查詢系統（115學年度第1學期）
 
-依 `littleyi22/timetable-demo` 的靜態前端架構製作：`index.html` + `style.css` + `app.js` + `config.js`，課表資料使用 `timetable_1151.csv`，導師資料使用 `homerooms_1151.json`。
+本網站以 `littleyi22/timetable-demo` 的靜態前端架構為基礎，使用 HTML/CSS/JavaScript 搭配 CSV 與 JSON 課表資料。
 
-## 本次資料
-- 學校：桃園市立經國國民中學
-- 學期：115學年度第1學期
-- 實施日期：115.08.31 ～ 116.01.20
-- 班級：701–710、801–810、901–909，共 29 班
-- 每班：40 節
-- CSV：79 位教師資料列
+## 本版本新增的查詢功能
+
+### 1. 班級查詢
+- 同一年級可同時複選多個班級，例如七年級可選 701、703、704。
+- 不同年級也可以混選，例如 701、703、804、901。
+- 一次最多查詢 4 個班級。
+- 查詢結果會一次顯示所有選取班級的完整課表。
+
+### 2. 教師查詢
+- 科目依「字數少 → 字數多」排序；同字數再依中文名稱排序。
+- 科目可以複選。
+- 某科目有選，但該科沒有指定教師：顯示該科所有教師。
+- 同一科目可以複選多位教師。
+- 不同科目可以自由混選教師，例如「數學－徐慧妮、數學－劉珈君、國文－蘇依玲、歷史－韓尚儒」。
+- 查詢結果會自動去除重複教師，並一次顯示所選教師的課表。
+
+## 檔案
+- `index.html`：頁面介面
+- `style.css`：版面與 RWD
+- `app.js`：查詢、複選、課表呈現邏輯
+- `config.js`：學期、學校名稱與登入設定
+- `timetable_1151.csv`：教師課表資料
+- `homerooms_1151.json`：班級導師資料
+- `.github/workflows/pages.yml`：GitHub Pages 工作流程（保留）
 
 ## 本機預覽
+
+在本資料夾執行：
+
 ```bash
 python -m http.server 8000
 ```
-開啟 `http://localhost:8000/`，也可直接使用「訪客登入」。
+
+再開啟 `http://localhost:8000/`。
 
 ## GitHub Pages
-將此資料夾內容放入 GitHub repository，Settings → Pages → Source 選 `GitHub Actions`。專案內的 `.github/workflows/pages.yml` 會在 push 後自動部署。
 
-## Firebase Hosting
-若要使用 Firebase Hosting：
-```bash
-npx -y firebase-tools@latest login
-npx -y firebase-tools@latest init hosting
-npx -y firebase-tools@latest deploy
-```
-這個網站是純靜態前端，不需要 Firebase Database 或 Authentication。
+Repository 若已經設定好 GitHub Pages，只需將本版本檔案覆蓋上傳到 `main` 分支即可。GitHub Pages 會自動重新發布。
+
+> 注意：目前帳號密碼屬於前端靜態設定，只是簡易進入門檻，不是安全的真正驗證機制。
